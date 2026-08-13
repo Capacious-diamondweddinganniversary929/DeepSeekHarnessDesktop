@@ -60,10 +60,7 @@ jobs:
           $pkg = $pkg -replace '\s*"packageManager":\s*"[^"]+",?\s*', "`n"
           Set-Content package.json -Value $pkg -Encoding utf8
           # hoisted 布局：无符号链接，Inno Setup 友好
-          @'
-manage-package-manager-versions=false
-node-linker=hoisted
-'@ | Set-Content .npmrc -Encoding utf8
+          Set-Content .npmrc -Value "manage-package-manager-versions=false`nnode-linker=hoisted" -Encoding utf8
           pnpm install
           pnpm run build
           Set-Location ..\..
