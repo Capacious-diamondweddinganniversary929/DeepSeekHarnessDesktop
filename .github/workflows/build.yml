@@ -96,7 +96,8 @@ jobs:
           VER="$( [ "$GITHUB_REF_TYPE" = "tag" ] && echo "${GITHUB_REF_NAME#v}" || echo dev )"
           ARCH="$(node -p "process.arch")"
           mkdir -p installers
-          tar -C build/DeepSeekHarnessApp -czf "installers/DeepSeekHarness-linux-${ARCH}-${VER}.tar.gz" DeepSeekHarness
+          # assemble.js 在 Linux 将应用输出到 DeepSeekHarnessApp 根目录
+          tar -C build/DeepSeekHarnessApp -czf "installers/DeepSeekHarness-linux-${ARCH}-${VER}.tar.gz" .
 
       - name: Package .deb (Linux)
         if: runner.os == 'Linux'
@@ -108,7 +109,7 @@ jobs:
           PKG="installers/pkg"
           rm -rf "$PKG"
           mkdir -p "$PKG/usr/lib/$APP" "$PKG/usr/share/applications" "$PKG/usr/share/icons/hicolor/256x256/apps" "$PKG/DEBIAN"
-          cp -a build/DeepSeekHarnessApp/DeepSeekHarness/. "$PKG/usr/lib/$APP/"
+          cp -a build/DeepSeekHarnessApp/. "$PKG/usr/lib/$APP/"
           cp build/icon-256.png "$PKG/usr/share/icons/hicolor/256x256/apps/deepseek-harness.png"
           cat > "$PKG/usr/share/applications/$APP.desktop" <<'EOF'
           [Desktop Entry]
