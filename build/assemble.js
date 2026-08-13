@@ -106,9 +106,25 @@ if (platform === 'win32') {
   sh('plutil', ['-replace', 'CFBundleIconFile', '-string', 'icon', plist])
 
   // ad-hoc 签名（Apple Silicon 必需，否则启动即被杀）。
-  // macOS 15 上 codesign 对 .framework bundle 报 "bundle format is ambiguous"，
-  // 因此不签 framework bundle 本身：改为识别所有 Mach-O 二进制（含框架内二进制）
-  // 与 dylib/.node 逐文件签名（深→浅），再签 helper .app 与最外层 app bundle。
+  // macOS 15 上 codesign 对 Electron 的 .framework 报 "bundle format is ambiguous"：
+  // 根因是框架 Info.plist 缺 CFBundlePackageType。处理：
+  //  1) 给每个 .framework 补 CFBundlePackageType=FMWK
+  //  2) 跳过符号链接，只签真实文件（.dylib/.node/无扩展名 Mach-O，深→浅）
+  //  3) 再签 framework bundle → helper .app → 主程序 → 外层 app bundle
+  function patchFrameworkTypes(frameworksDir) {
+    if (!fs.existsSync(frameworksDir)) return
+    for (const e of fs.readdirSync(frameworksDir, { withFileTypes: true })) {
+      if (!(e.isDirectory() && e.name.endsWith('.framework'))) continue
+      for (const pl of [
+        path.join(frameworksDir, e.name, 'Resources', 'Info.plist'),
+        path.join(frameworksDir, e.name, 'Versions', 'A', 'Resources', 'Info.plist'),
+      ]) {
+        if (!fs.existsSync(pl)) continue
+        let r = sh('plutil', ['-insert', 'CFBundlePackageType', '-string', 'FMWK', pl], { check: false })
+        if (r.status !== 0) sh('plutil', ['-replace', 'CFBundlePackageType', '-string', 'FMWK', pl])
+      }
+    }
+  }
   function isMachO(p) {
     try {
       const fd = fs.openSync(p, 'r')
@@ -121,26 +137,32 @@ if (platform === 'win32') {
     } catch { return false }
   }
   function adhocSign(appDir) {
-    const machOs = []
-    const helperApps = []
+    const files = []
+    const frameworks = []
+    const apps = []
     ;(function walk(dir) {
       let entries
       try { entries = fs.readdirSync(dir, { withFileTypes: true }) } catch { return }
       for (const e of entries) {
+        if (e.isSymbolicLink()) continue // 符号链接跳过，真实文件会在原路径被遍历到
         const p = path.join(dir, e.name)
         if (e.isDirectory()) {
-          if (e.name.endsWith('.app') && dir !== appDir) helperApps.push(p)
+          if (e.name.endsWith('.framework')) frameworks.push(p)
+          else if (e.name.endsWith('.app') && dir !== appDir) apps.push(p)
           walk(p)
         } else if (e.name.endsWith('.dylib') || e.name.endsWith('.node') || isMachO(p)) {
-          machOs.push(p)
+          files.push(p)
         }
       }
     })(appDir)
-    machOs.sort((a, b) => b.length - a.length) // 深→浅
-    for (const p of machOs) sh('codesign', ['--force', '-s', '-', p])
-    for (const a of helperApps) sh('codesign', ['--force', '-s', '-', a])
+    patchFrameworkTypes(path.join(appDir, 'Contents', 'Frameworks'))
+    files.sort((a, b) => b.length - a.length) // 深→浅
+    for (const p of files) sh('codesign', ['--force', '-s', '-', p])
+    for (const f of frameworks) sh('codesign', ['--force', '-s', '-', f])
+    for (const a of apps) sh('codesign', ['--force', '-s', '-', a])
+    sh('codesign', ['--force', '-s', '-', path.join(appDir, 'Contents', 'MacOS', 'DeepSeekHarness')])
     sh('codesign', ['--force', '-s', '-', appDir])
-    console.log(`codesign: signed ${machOs.length} binaries + ${helperApps.length} helpers + app bundle`)
+    console.log(`codesign: ${files.length} files + ${frameworks.length} frameworks + ${apps.length} apps + main + bundle`)
   }
   adhocSign(appDir)
 } else {
