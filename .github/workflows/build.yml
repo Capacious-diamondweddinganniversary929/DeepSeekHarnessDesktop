@@ -61,8 +61,11 @@ jobs:
           Set-Content package.json -Value $pkg -Encoding utf8
           # hoisted 布局：无符号链接，Inno Setup 友好
           Set-Content .npmrc -Value "manage-package-manager-versions=false`nnode-linker=hoisted" -Encoding utf8
-          pnpm install
+          # CI 上 pnpm 默认 frozen-lockfile，pnpm10 与 pnpm11 lockfile 不匹配，需显式允许更新
+          pnpm install --no-frozen-lockfile
+          if ($LASTEXITCODE -ne 0) { throw "pnpm install failed (exit $LASTEXITCODE)" }
           pnpm run build
+          if ($LASTEXITCODE -ne 0) { throw "pnpm build failed (exit $LASTEXITCODE)" }
           Set-Location ..\..
 
       - name: Materialize node_modules links
