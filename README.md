@@ -1,7 +1,7 @@
 # DeepSeek Harness 桌面版
 
-将 [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness) 打包成 Windows 一键安装包（`.exe`）：
-**Electron 桌面壳 + 内置 Node 运行时 + 完整 Harness 环境**，双击安装即用。
+将 [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness) 打包成三平台桌面应用：
+**Electron 桌面壳 + 内置 Node 运行时 + 完整 Harness 环境**，双击即用。
 
 ![DeepSeek](log.svg)
 
@@ -9,17 +9,23 @@
 
 - **一键启动**：双击 `DeepSeekHarness.exe` → 自动拉起后端 → 直接打开 DeepSeek Harness Web UI
 - **内置 Node 24**：自包含运行时，用户无需安装 Node.js
-- **完整环境**：打包了 Harness 全部依赖（链接已物化为真实文件，Inno Setup 友好）
+- **完整环境**：打包了 Harness 全部依赖（链接已物化为真实文件）
 - **无边框窗口**：UI 铺满窗口，右上角内嵌最小化 / 最大化 / 关闭按钮
 - **单实例**：重复启动不会拉起多个后端
-- **免管理员**：安装到 `%LocalAppData%\Programs\DeepSeek Harness`
+- **免管理员**：Windows 安装到 `%LocalAppData%\Programs\DeepSeek Harness`
 
 ## 📦 产物
 
-| 文件 | 说明 |
-|------|------|
-| `installers/DeepSeekHarnessSetup-*.exe` | 一键安装包（Inno Setup 编译） |
-| `build/DeepSeekHarnessApp/DeepSeekHarness.exe` | 免安装版（直接运行） |
+| 平台 | 文件 | 说明 |
+|------|------|------|
+| Windows | `installers/DeepSeekHarnessSetup-*.exe` | Inno Setup 一键安装包 |
+| Windows | `build/DeepSeekHarnessApp/DeepSeekHarness.exe` | 免安装版（直接运行） |
+| macOS | `installers/DeepSeekHarness-macOS-<arch>-<ver>.dmg` | 应用镜像（.app，ad-hoc 签名） |
+| Linux | `installers/DeepSeekHarness-linux-<arch>-<ver>.tar.gz` | 免安装压缩包（解压即用） |
+| Linux | `installers/deepseek-harness_<ver>_<arch>.deb` | Debian/Ubuntu 安装包 |
+
+> 三平台均由 GitHub Actions 自动构建（`.github/workflows/build.yml` 矩阵），
+> 推送 `v*` 标签时自动发布到 Release；也可 `workflow_dispatch` 手动触发。
 
 ## 🗂 目录结构
 
@@ -28,47 +34,55 @@ app/                      Electron 桌面应用源码
   main.js                 主进程：启动后端、注入窗口控制按钮
   preload.js / titlebar-preload.js    preload 脚本
   renderer/               渲染页面
-build/                    构建脚本与产物
+build/                    构建脚本与产物（跨平台，Node 实现）
+  build-harness.js        克隆 deepseek-harness、准备 .npmrc、pnpm 构建
   materialize3.js         node_modules 链接物化（消除 junction/符号链接）
-  assemble.ps1            组装 Electron 应用目录
-  trim.ps1 / flatten.ps1  精简脚本
-  convert-icon.js         图标转换
-setup.iss                 Inno Setup 安装脚本
+  download-node.js        按平台下载内置 Node 运行时（win/darwin/linux × x64/arm64）
+  trim.js                 精简 harness（跨平台版 trim.ps1）
+  assemble.js             组装应用目录（Windows robocopy / POSIX cp -aL）
+  convert-icon.js         SVG -> ICO（png-to-ico）+ PNG 源图
+  assemble.ps1 / trim.ps1 Windows 本地构建脚本（与 assemble.js/trim.js 等价）
+setup.iss                 Inno Setup 安装脚本（本地/CI 均可用）
 log.svg                   应用图标（DeepSeek logo）
 ```
 
 ## 🔧 构建流程
 
-> 需要：Windows 10+、[Node.js ≥ 22.19](https://nodejs.org/)、[Inno Setup 7](https://jrsoftware.org/isdl.php)、[pnpm 10](https://pnpm.io/)（注意：**必须用 pnpm 10**，pnpm 11 移除了 hoisted linker）
+> 本地需要：Node.js ≥ 22、[pnpm 10](https://pnpm.io/)（注意：**必须用 pnpm 10**，
+> pnpm 11 移除了 hoisted linker）；Windows 额外需要 [Inno Setup 7](https://jrsoftware.org/isdl.php)。
+> CI 三平台全自动，无需本地环境。
 
 ### 1. 准备 Harness 依赖（pnpm 10 + hoisted）
 
-```powershell
-git clone https://github.com/deepseek-ai/deepseek-harness.git
-cd deepseek-harness
-pnpm install && pnpm run build
+```bash
+node build/build-harness.js        # 克隆 → 删 packageManager → .npmrc(hoisted) → pnpm install → pnpm build
 ```
 
-打包用的副本需要：删除根 `package.json` 的 `packageManager` 字段，`.npmrc` 设置
-`node-linker=hoisted` 与 `manage-package-manager-versions=false`，然后用
-`npx -y pnpm@10 install` 安装（避免 pnpm 11 的 isolated 符号链接布局）。
+### 2. 物化链接 + 精简
 
-### 2. 物化链接（关键步骤）
-
-pnpm 的 workspace 布局含大量 junction/符号链接，必须转为真实文件，否则
-robocopy 会因循环依赖挂起、Inno Setup 会因路径超长失败：
-
-```powershell
-node build\materialize3.js <harness目录>
+```bash
+node build/materialize3.js resources/harness   # junction/符号链接 → 真实文件
+node build/trim.js                             # 删除冗余 @deepseek-ai 副本、拷贝 web 前端
 ```
 
-同时会删除 pnpm 的 `.ignored_*` 目录（避免 Windows 260 字符路径限制）。
+### 3. 运行时 + 组装
 
-### 3. 组装 + 编译
+```bash
+node build/download-node.js v24.14.0           # 内置 Node（按当前平台/架构）
+npm install                                    # electron + sharp + png-to-ico
+node build/convert-icon.js log.svg build/app.ico
+node build/assemble.js                         # 组装到 build/DeepSeekHarnessApp
+```
 
-```powershell
-pwsh build\assemble.ps1                 # electron 运行时 + 内置 node + harness → DeepSeekHarnessApp
-& "C:\Program Files\Inno Setup 7\ISCC.exe" setup.iss   # 编译安装包
+### 4. 打包
+
+```bash
+# Windows
+& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DProjectDir=$((Get-Location).Path)" setup.iss
+# macOS
+hdiutil create -volname "DeepSeek Harness" -srcfolder build/DeepSeekHarnessApp/DeepSeekHarness.app -ov -format UDZO installers/DeepSeekHarness-macOS-$(uname -m).dmg
+# Linux
+tar -C build/DeepSeekHarnessApp -czf installers/DeepSeekHarness-linux.tar.gz DeepSeekHarness
 ```
 
 ## 🚀 使用
