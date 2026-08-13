@@ -105,8 +105,30 @@ if (platform === 'win32') {
   sh('plutil', ['-replace', 'CFBundleExecutable', '-string', 'DeepSeekHarness', plist])
   sh('plutil', ['-replace', 'CFBundleIconFile', '-string', 'icon', plist])
 
-  // ad-hoc 签名（Apple Silicon 必需，否则启动即被杀）
-  sh('codesign', ['--force', '--deep', '-s', '-', appDir])
+  // ad-hoc 签名（Apple Silicon 必需，否则启动即被杀）。
+  // 注意：--deep 已废弃且新版 macOS 报 "bundle format is ambiguous"，
+  // 必须由深到浅逐组件签名：dylib/.node → framework → helper app → 主程序 → app bundle
+  function adhocSign(appDir) {
+    const toSign = []
+    ;(function walk(dir) {
+      let entries
+      try { entries = fs.readdirSync(dir, { withFileTypes: true }) } catch { return }
+      for (const e of entries) {
+        const p = path.join(dir, e.name)
+        if (e.isDirectory()) {
+          if (e.name.endsWith('.framework') || e.name.endsWith('.app')) toSign.push(p)
+          walk(p)
+        } else if (e.name.endsWith('.dylib') || e.name.endsWith('.node')) {
+          toSign.push(p)
+        }
+      }
+    })(appDir)
+    toSign.sort((a, b) => b.length - a.length) // 深→浅
+    for (const p of toSign) sh('codesign', ['--force', '-s', '-', p])
+    sh('codesign', ['--force', '-s', '-', appDir])
+    console.log(`codesign: signed ${toSign.length} subcomponents + app bundle`)
+  }
+  adhocSign(appDir)
 } else {
   copyContents(electronDist, out)
   fs.renameSync(path.join(out, 'electron'), path.join(out, 'DeepSeekHarness'))
