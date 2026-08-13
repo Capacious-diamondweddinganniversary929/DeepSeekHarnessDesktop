@@ -44,7 +44,7 @@ console.error(`workspace packages: ${pkgs.length}`)
 fs.mkdirSync(DSAI, { recursive: true })
 for (const e of fs.readdirSync(DSAI)) {
   const p = path.join(DSAI, e)
-  try { if (fs.lstatSync(p).isSymbolicLink()) fs.rmdirSync(p) } catch {}
+  try { if (fs.lstatSync(p).isSymbolicLink()) fs.unlinkSync(p) } catch {}
 }
 let copied = 0
 for (const p of pkgs) {
@@ -69,7 +69,7 @@ let replaced = 0, deleted = 0
         continue
       }
       if (st.isDirectory()) {
-        fs.rmdirSync(p)
+        fs.unlinkSync(p)
         copyDir(r, p, true)   // skip target's node_modules (root covers deps)
         replaced++
       } else {

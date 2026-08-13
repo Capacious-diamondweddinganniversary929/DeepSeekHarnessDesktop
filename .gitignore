@@ -3,6 +3,7 @@ node_modules/
 
 # 构建产物（巨型）
 build/DeepSeekHarnessApp/
+build/test-assemble/
 build/nested-node_modules-backup/
 build/*.ico
 build/*.png

@@ -28,13 +28,28 @@ let stopRequested = false
 function appResourcesDir() {
   return path.join(path.dirname(process.execPath), 'resources')
 }
-function nodeExe() { return path.join(appResourcesDir(), 'node', 'node.exe') }
+function nodeExe() {
+  // Windows 内置 node.exe，macOS/Linux 为无扩展名可执行文件
+  const name = process.platform === 'win32' ? 'node.exe' : 'node'
+  return path.join(appResourcesDir(), 'node', name)
+}
 function harnessDir() { return path.join(appResourcesDir(), 'harness') }
 function logFile() { return path.join(app.getPath('userData'), 'harness-server.log') }
 function errFile() { return path.join(app.getPath('userData'), 'harness-server.err.log') }
 function appIcon() {
-  const p = path.join(path.dirname(process.execPath), 'app.ico')
-  return fs.existsSync(p) ? p : undefined
+  const exeDir = path.dirname(process.execPath)
+  // macOS: 可执行文件在 Contents/MacOS，图标资源在 Contents/Resources
+  const dirs = process.platform === 'darwin'
+    ? [path.join(exeDir, '..', 'Resources'), exeDir]
+    : [exeDir]
+  const names = process.platform === 'win32' ? ['app.ico']
+    : process.platform === 'darwin' ? ['icon.icns', 'icon.png']
+    : ['icon.png']
+  for (const d of dirs) for (const n of names) {
+    const p = path.join(d, n)
+    if (fs.existsSync(p)) return p
+  }
+  return undefined
 }
 
 function probeServer() {
@@ -105,7 +120,13 @@ async function startHarness() {
 function stopHarness() {
   stopRequested = true
   if (serverProcess && serverProcess.pid) {
-    try { spawnSync('taskkill', ['/pid', String(serverProcess.pid), '/T', '/F'], { windowsHide: true }) } catch { /* 忽略 */ }
+    try {
+      if (process.platform === 'win32') {
+        spawnSync('taskkill', ['/pid', String(serverProcess.pid), '/T', '/F'], { windowsHide: true })
+      } else {
+        process.kill(serverProcess.pid, 'SIGTERM')
+      }
+    } catch { /* 忽略 */ }
     serverProcess = null
   }
 }

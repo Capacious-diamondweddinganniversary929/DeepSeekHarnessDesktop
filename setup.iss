@@ -1,5 +1,8 @@
 #define MyAppName "DeepSeek Harness"
-#define MyAppVersion "0.1.0"
+; 版本号：本地默认值，CI 上用 /DMyAppVersion= 覆盖（与标签保持一致）
+#ifndef MyAppVersion
+  #define MyAppVersion "0.1.0"
+#endif
 #define MyAppExeName "DeepSeekHarness.exe"
 ; 项目根路径：本地默认值，CI 上用 /DProjectDir= 覆盖
 #ifndef ProjectDir
