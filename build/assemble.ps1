@@ -36,7 +36,7 @@ if ($LASTEXITCODE -ge 8) { throw "robocopy harness 失败 ($LASTEXITCODE)" }
 $rcedit = Join-Path $root "rcedit-x64.exe"
 $exe = Join-Path $out "DeepSeekHarness.exe"
 $ico = Join-Path $root "app.ico"
-if (Test-Path $rcedit -and (Test-Path $ico)) {
+if ((Test-Path $rcedit) -and (Test-Path $ico)) {
   & $rcedit $exe --set-icon $ico
   if ($LASTEXITCODE -eq 0) { Write-Host "rcedit: 图标已替换" } else { Write-Host "rcedit: 退出码 $LASTEXITCODE（忽略）" }
 } else {
