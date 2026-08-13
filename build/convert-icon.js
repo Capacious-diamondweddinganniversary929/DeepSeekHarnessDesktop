@@ -19,7 +19,10 @@ async function renderPng(size) {
 async function main() {
   const pngs = []
   for (const s of SIZES) pngs.push(await renderPng(s))
-  const ico = await imagesToIco(pngs)
+  // imagesToIco 需要 readPNG 解码后的位图对象（{ data, width, height }），不是 PNG Buffer
+  const { readPNG } = await import('png-to-ico/lib/png.js')
+  const imgs = await Promise.all(pngs.map((b) => readPNG(b)))
+  const ico = await imagesToIco(imgs)
   fs.writeFileSync(OUT, ico)
   console.log('app.ico written:', SIZES.join(','), ico.length, 'bytes')
   // macOS .icns 源图与 Linux 图标（与 app.ico 同目录）
