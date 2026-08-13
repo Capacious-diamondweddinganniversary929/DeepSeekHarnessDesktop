@@ -1,0 +1,26 @@
+# 依赖
+node_modules/
+
+# 构建产物（巨型）
+build/DeepSeekHarnessApp/
+build/nested-node_modules-backup/
+build/*.ico
+build/*.png
+build/*.log
+build/rcedit-x64.exe
+build/node-v*-win-x64.zip
+build/launch-test.*
+build/diag*.log
+
+# 安装包
+installers/
+
+# 运行时 / 缓存
+resources/node/
+resources/harness/
+.dsh/
+.turbo/
+
+# 系统
+Thumbs.db
+Desktop.ini

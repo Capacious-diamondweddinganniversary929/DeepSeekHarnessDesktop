@@ -1,0 +1,82 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  color: #e2e8f0;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card {
+  width: 460px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid #334155;
+  border-radius: 16px;
+  padding: 28px 32px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+
+header { text-align: center; margin-bottom: 20px; }
+.logo { font-size: 42px; line-height: 1; }
+h1 { font-size: 22px; margin-top: 8px; color: #f8fafc; }
+.subtitle { color: #94a3b8; font-size: 13px; margin-top: 4px; }
+
+.status-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #0b1220;
+  border: 1px solid #1e293b;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+.dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+.dot.stopped { background: #64748b; }
+.dot.starting { background: #f59e0b; animation: pulse 1s infinite; }
+.dot.running { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
+.dot.error { background: #ef4444; }
+.status-text { font-size: 14px; }
+
+.error-box {
+  background: #450a0a;
+  border: 1px solid #7f1d1d;
+  color: #fecaca;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 12px;
+  margin-bottom: 14px;
+  word-break: break-all;
+}
+
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+.btn {
+  font-size: 14px;
+  padding: 11px 12px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #f8fafc;
+  background: #334155;
+  transition: filter 0.15s, transform 0.05s;
+}
+.btn:hover:not(:disabled) { filter: brightness(1.15); }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn.primary { background: #4f46e5; grid-column: 1 / -1; font-weight: 600; }
+.btn.danger { background: #b91c1c; }
+.btn.secondary { background: #1e293b; }
+
+footer { border-top: 1px solid #1e293b; padding-top: 14px; }
+.hint { color: #94a3b8; font-size: 12px; line-height: 1.7; }
+.hint code { color: #7dd3fc; background: #0b1220; padding: 1px 6px; border-radius: 4px; font-size: 12px; }
+
+.hidden { display: none; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "deepseek-harness-desktop",
+  "productName": "DeepSeek Harness",
+  "version": "0.1.0",
+  "description": "DeepSeek Harness 桌面一键启动器",
+  "main": "main.js",
+  "private": true
+}

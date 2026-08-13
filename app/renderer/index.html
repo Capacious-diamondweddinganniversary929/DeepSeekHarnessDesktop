@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:;">
+  <title>DeepSeek Harness</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="card">
+    <header>
+      <div class="logo">🐋</div>
+      <h1>DeepSeek Harness</h1>
+      <p class="subtitle">桌面版一键启动器 · v0.1.0</p>
+    </header>
+
+    <section class="status-row">
+      <span id="dot" class="dot"></span>
+      <span id="status-text" class="status-text">正在检测服务状态…</span>
+    </section>
+
+    <section id="error-box" class="error-box hidden"></section>
+
+    <div class="actions">
+      <button id="btn-start" class="btn primary">🚀 启动并打开界面</button>
+      <button id="btn-stop" class="btn danger">⏹ 停止服务</button>
+      <button id="btn-ui" class="btn">🖥 打开界面窗口</button>
+      <button id="btn-browser" class="btn">🌐 在浏览器打开</button>
+      <button id="btn-logs" class="btn secondary">📄 查看日志</button>
+      <button id="btn-data" class="btn secondary">📁 打开数据目录</button>
+    </div>
+
+    <footer>
+      <p class="hint">首次使用：启动后请在 Web 界面的设置中填入 DeepSeek API Key。</p>
+      <p class="hint">服务地址：<code id="url">http://127.0.0.1:3080</code></p>
+    </footer>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

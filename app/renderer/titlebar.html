@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>DeepSeek Harness</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; overflow: hidden; background: #0f172a; font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif; }
+    .titlebar {
+      height: 38px;
+      display: flex; align-items: center;
+      background: #0b1220;
+      border-bottom: 1px solid #1e293b;
+      -webkit-app-region: drag;
+      user-select: none;
+    }
+    .titlebar .brand { display: flex; align-items: center; gap: 8px; padding: 0 12px; color: #e2e8f0; font-size: 13px; font-weight: 600; }
+    .titlebar .brand .dot { width: 8px; height: 8px; border-radius: 50%; background: #4D6BFE; }
+    .titlebar .spacer { flex: 1; }
+    .controls { display: flex; height: 100%; -webkit-app-region: no-drag; }
+    .controls button {
+      width: 46px; height: 100%;
+      border: none; background: transparent;
+      color: #94a3b8; font-size: 12px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+    }
+    .controls button:hover { background: #1e293b; color: #e2e8f0; }
+    .controls button.close:hover { background: #e11d48; color: #fff; }
+    .view { height: calc(100% - 38px); }
+    .view webview { width: 100%; height: 100%; }
+  </style>
+</head>
+<body>
+  <div class="titlebar">
+    <div class="brand"><span class="dot"></span>DeepSeek Harness</div>
+    <div class="spacer"></div>
+    <div class="controls">
+      <button id="btn-min" title="最小化">─</button>
+      <button id="btn-max" title="最大化">□</button>
+      <button id="btn-close" title="关闭">✕</button>
+    </div>
+  </div>
+  <div class="view">
+    <webview id="view" src="http://127.0.0.1:3080" partition="persist:harness"></webview>
+  </div>
+  <script>
+    const win = window.win
+    document.getElementById('btn-min').addEventListener('click', () => win.minimize())
+    document.getElementById('btn-max').addEventListener('click', () => win.maximize())
+    document.getElementById('btn-close').addEventListener('click', () => win.close())
+  </script>
+</body>
+</html>
