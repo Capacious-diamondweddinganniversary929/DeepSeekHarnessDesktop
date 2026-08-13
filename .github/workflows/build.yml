@@ -71,7 +71,7 @@ jobs:
         run: |
           $iscc = Get-ChildItem "C:\Program Files*\Inno Setup*\ISCC.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
           if (-not $iscc) { throw "ISCC.exe not found" }
-          $ver = $env:GITHUB_REF_NAME -replace '^v',''
+          $ver = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME -replace '^v','' } else { 'dev' }
           if (-not $ver) { $ver = "0.1.0" }
           & $iscc "/DProjectDir=$((Get-Location).Path)" "/DMyAppVersion=$ver" setup.iss
           if ($LASTEXITCODE -ne 0) { throw "ISCC compile failed, exit $LASTEXITCODE" }
@@ -81,7 +81,7 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           set -euo pipefail
-          VER="${GITHUB_REF_NAME#v}"
+          VER="$( [ "$GITHUB_REF_TYPE" = "tag" ] && echo "${GITHUB_REF_NAME#v}" || echo dev )"
           ARCH="$(node -p "process.arch")"
           mkdir -p installers
           hdiutil create -volname "DeepSeek Harness" \
@@ -93,7 +93,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           set -euo pipefail
-          VER="${GITHUB_REF_NAME#v}"
+          VER="$( [ "$GITHUB_REF_TYPE" = "tag" ] && echo "${GITHUB_REF_NAME#v}" || echo dev )"
           ARCH="$(node -p "process.arch")"
           mkdir -p installers
           tar -C build/DeepSeekHarnessApp -czf "installers/DeepSeekHarness-linux-${ARCH}-${VER}.tar.gz" DeepSeekHarness
@@ -102,7 +102,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           set -euo pipefail
-          VER="${GITHUB_REF_NAME#v}"
+          VER="$( [ "$GITHUB_REF_TYPE" = "tag" ] && echo "${GITHUB_REF_NAME#v}" || echo dev )"
           ARCH="$(node -p "process.arch === 'arm64' ? 'arm64' : 'amd64'")"
           APP=deepseek-harness
           PKG="installers/pkg"
