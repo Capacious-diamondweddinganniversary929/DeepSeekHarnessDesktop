@@ -106,27 +106,41 @@ if (platform === 'win32') {
   sh('plutil', ['-replace', 'CFBundleIconFile', '-string', 'icon', plist])
 
   // ad-hoc 签名（Apple Silicon 必需，否则启动即被杀）。
-  // 注意：--deep 已废弃且新版 macOS 报 "bundle format is ambiguous"，
-  // 必须由深到浅逐组件签名：dylib/.node → framework → helper app → 主程序 → app bundle
+  // macOS 15 上 codesign 对 .framework bundle 报 "bundle format is ambiguous"，
+  // 因此不签 framework bundle 本身：改为识别所有 Mach-O 二进制（含框架内二进制）
+  // 与 dylib/.node 逐文件签名（深→浅），再签 helper .app 与最外层 app bundle。
+  function isMachO(p) {
+    try {
+      const fd = fs.openSync(p, 'r')
+      const b = Buffer.alloc(4)
+      fs.readSync(fd, b, 0, 4, 0)
+      fs.closeSync(fd)
+      const m = b.readUInt32BE(0)
+      return m === 0xFEEDFACE || m === 0xFEEDFACF || m === 0xCAFEBABE ||
+        m === 0xBEBAFECA || m === 0xCFFAEDFE || m === 0xCEFAEDFE || m === 0xFEEDFA11
+    } catch { return false }
+  }
   function adhocSign(appDir) {
-    const toSign = []
+    const machOs = []
+    const helperApps = []
     ;(function walk(dir) {
       let entries
       try { entries = fs.readdirSync(dir, { withFileTypes: true }) } catch { return }
       for (const e of entries) {
         const p = path.join(dir, e.name)
         if (e.isDirectory()) {
-          if (e.name.endsWith('.framework') || e.name.endsWith('.app')) toSign.push(p)
+          if (e.name.endsWith('.app') && dir !== appDir) helperApps.push(p)
           walk(p)
-        } else if (e.name.endsWith('.dylib') || e.name.endsWith('.node')) {
-          toSign.push(p)
+        } else if (e.name.endsWith('.dylib') || e.name.endsWith('.node') || isMachO(p)) {
+          machOs.push(p)
         }
       }
     })(appDir)
-    toSign.sort((a, b) => b.length - a.length) // 深→浅
-    for (const p of toSign) sh('codesign', ['--force', '-s', '-', p])
+    machOs.sort((a, b) => b.length - a.length) // 深→浅
+    for (const p of machOs) sh('codesign', ['--force', '-s', '-', p])
+    for (const a of helperApps) sh('codesign', ['--force', '-s', '-', a])
     sh('codesign', ['--force', '-s', '-', appDir])
-    console.log(`codesign: signed ${toSign.length} subcomponents + app bundle`)
+    console.log(`codesign: signed ${machOs.length} binaries + ${helperApps.length} helpers + app bundle`)
   }
   adhocSign(appDir)
 } else {
