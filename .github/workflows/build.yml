@@ -1,0 +1,106 @@
+name: Build & Release Installer
+
+on:
+  workflow_dispatch:            # 手动触发
+  push:
+    tags:
+      - 'v*'                    # 推送 v 开头标签时自动构建并发布
+
+permissions:
+  contents: write               # 允许上传 Release
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Setup pnpm 10
+        shell: pwsh
+        run: |
+          npm install -g pnpm@10
+          pnpm --version
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup -y --no-progress
+
+      - name: Download bundled Node runtime
+        shell: pwsh
+        run: |
+          $url = "https://nodejs.org/dist/v24.14.0/node-v24.14.0-win-x64.zip"
+          $zip = Join-Path $env:RUNNER_TEMP "node.zip"
+          Invoke-WebRequest -Uri $url -OutFile $zip
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $z = [System.IO.Compression.ZipFile]::OpenRead($zip)
+          $entry = $z.Entries | Where-Object { $_.FullName -match 'node\.exe$' } | Select-Object -First 1
+          New-Item -ItemType Directory -Force -Path "resources\node" | Out-Null
+          [System.IO.Compression.ZipFileExtensions]::ExtractToFile($entry, "resources\node\node.exe", $true)
+          $z.Dispose()
+
+      - name: Download rcedit (icon)
+        shell: pwsh
+        run: Invoke-WebRequest -Uri "https://github.com/electron/rcedit/releases/download/v2.0.0/rcedit-x64.exe" -OutFile "build\rcedit-x64.exe"
+
+      - name: Clone & build DeepSeek Harness
+        shell: pwsh
+        run: |
+          git clone --depth 1 --branch master https://github.com/deepseek-ai/deepseek-harness.git resources\harness
+          Set-Location resources\harness
+          # 移除 packageManager 字段，避免自动切到 pnpm 11
+          $pkg = Get-Content package.json -Raw
+          $pkg = $pkg -replace '\s*"packageManager":\s*"[^"]+",?\s*', "`n"
+          Set-Content package.json -Value $pkg -Encoding utf8
+          # hoisted 布局：无符号链接，Inno Setup 友好
+          @'
+manage-package-manager-versions=false
+node-linker=hoisted
+'@ | Set-Content .npmrc -Encoding utf8
+          pnpm install
+          pnpm run build
+          Set-Location ..\..
+
+      - name: Materialize node_modules links
+        run: node build\materialize3.js resources\harness
+
+      - name: Trim + web-frontend
+        shell: pwsh
+        run: pwsh build\trim.ps1
+
+      - name: Remove harness .git
+        shell: pwsh
+        run: Remove-Item -Recurse -Force resources\harness\.git -ErrorAction SilentlyContinue
+
+      - name: Install app dependencies (electron)
+        run: npm install
+
+      - name: Generate app icon
+        run: node build\convert-icon.js log.svg build\app.ico
+
+      - name: Assemble desktop app
+        shell: pwsh
+        run: pwsh build\assemble.ps1
+
+      - name: Compile installer (ISCC)
+        shell: pwsh
+        run: |
+          $iscc = Get-ChildItem "C:\Program Files*\Inno Setup*\ISCC.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+          if (-not $iscc) { throw "ISCC.exe not found" }
+          & $iscc setup.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC compile failed, exit $LASTEXITCODE" }
+
+      - name: Upload installer to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            installers/DeepSeekHarnessSetup-*.exe
+          generate_release_notes: true

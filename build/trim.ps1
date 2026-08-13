@@ -1,6 +1,7 @@
 $ErrorActionPreference = "Stop"
-$h = "C:\Users\AzurLane\DeepSeekHarnessDesktop\resources\harness"
-$out = "C:\Users\AzurLane\DeepSeekHarnessDesktop\build\DeepSeekHarnessApp\resources\harness"
+$proj = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)   # 项目根
+$h = Join-Path $proj "resources\harness"
+$out = Join-Path $proj "build\DeepSeekHarnessApp\resources\harness"
 
 # 1. remove partial dest harness
 if ([System.IO.Directory]::Exists($out)) {
@@ -23,7 +24,12 @@ foreach ($sub in @("packages","apps","vendor","examples","website","native","pyt
 }
 Write-Host "removed redundant @deepseek-ai dirs: $removed"
 
-# 3. count source files
+# 3. web-app 需要能解析 @deepseek-ai/dsh-web-frontend（apps/web 里的前端产物）
+$feSrc = Join-Path $h "apps\web"
+$feDst = Join-Path $h "node_modules\@deepseek-ai\dsh-web-frontend"
+robocopy $feSrc $feDst /E /XD node_modules /NFL /NDL /NJH /NJS /NP | Out-Null
+Write-Host "web-frontend copied: $(Test-Path (Join-Path $feDst 'dist\index.html'))"
+
+# 4. count source files
 $files = (Get-ChildItem $h -Recurse -File -ErrorAction SilentlyContinue | Measure-Object).Count
-$size = [math]::Round(((Get-ChildItem $h -Recurse -File -ErrorAction SilentlyContinue | Measure-Object Length -Sum).Sum)/1GB,2)
-Write-Host "source after trim: $files files, $size GB"
+Write-Host "source after trim: $files files"

@@ -1,6 +1,6 @@
 'use strict'
 
-const { app, BrowserWindow, ipcMain, dialog } = require('electron')
+const { app, BrowserWindow, ipcMain, dialog, Tray, Menu, nativeImage } = require('electron')
 const { spawn, spawnSync } = require('node:child_process')
 const http = require('node:http')
 const path = require('node:path')
@@ -10,14 +10,18 @@ const HARNESS_PORT = 3080
 const BOOT_MARKER = '__DSH_BOOT__'
 const START_TIMEOUT_MS = 120 * 1000
 
-// 单实例：启动期间再双击不会拉起第二个后端
+let tray = null
+let isQuitting = false
+
+// 单实例：启动期间再双击不会拉起第二个后端，而是唤起已有窗口
 if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
-  app.on('second-instance', () => { if (uiWindow) { uiWindow.focus() } })
+  app.on('second-instance', () => showUi())
 }
 
 let uiWindow = null
+let splashWindow = null
 let serverProcess = null
 let stopRequested = false
 
@@ -106,6 +110,52 @@ function stopHarness() {
   }
 }
 
+// MD3 风格启动加载页：圆角卡片 + 左上角 logo + 底部滚动进度条
+function createSplash() {
+  splashWindow = new BrowserWindow({
+    width: 400, height: 148,
+    frame: false, transparent: true,
+    resizable: false, maximizable: false, minimizable: false, fullscreenable: false,
+    alwaysOnTop: true, skipTaskbar: true,
+    icon: appIcon(),
+    webPreferences: { contextIsolation: true },
+  })
+  splashWindow.setAlwaysOnTop(true, 'screen-saver')
+  splashWindow.loadFile(path.join(__dirname, 'renderer', 'splash.html'))
+}
+function splashDone() {
+  if (splashWindow) {
+    splashWindow.close()
+    splashWindow = null
+  }
+}
+
+// 系统托盘：关闭窗口后服务继续后台运行
+function createTray() {
+  if (tray) return
+  const iconPath = appIcon()
+  const icon = iconPath ? nativeImage.createFromPath(iconPath) : nativeImage.createEmpty()
+  tray = new Tray(icon)
+  tray.setToolTip('DeepSeek Harness')
+  tray.setContextMenu(Menu.buildFromTemplate([
+    { label: '打开界面', click: () => showUi() },
+    { type: 'separator' },
+    { label: '退出', click: () => {
+      isQuitting = true
+      stopHarness()
+      app.quit()
+    } },
+  ]))
+  tray.on('click', () => showUi())
+}
+
+function showUi() {
+  if (!uiWindow) { openUi(); return }
+  if (uiWindow.isMinimized()) uiWindow.restore()
+  uiWindow.show()
+  uiWindow.focus()
+}
+
 function openUi() {
   uiWindow = new BrowserWindow({
     width: 1280, height: 860,
@@ -122,31 +172,56 @@ function openUi() {
   uiWindow.loadURL(`http://127.0.0.1:${HARNESS_PORT}`)
   uiWindow.on('page-title-updated', (e) => e.preventDefault())
   uiWindow.on('closed', () => { uiWindow = null })
+  // 点关闭（✕）不退出，隐藏到托盘，服务继续运行
+  uiWindow.on('close', (e) => {
+    if (!isQuitting) {
+      e.preventDefault()
+      uiWindow.hide()
+    }
+  })
   // 页面加载完成后，把三个窗口按钮嵌入到页面右上角 + 顶部拖拽区
   uiWindow.webContents.on('did-finish-load', () => {
     injectWindowControls(uiWindow.webContents)
   })
+  // 最大化状态变化通知页面，用于切换 最大化/还原 图标
+  uiWindow.on('maximize', () => uiWindow.webContents.send('win:maximized-change', true))
+  uiWindow.on('unmaximize', () => uiWindow.webContents.send('win:maximized-change', false))
 }
 
 // 向 harness 页面注入浮动的窗口控制按钮（右上角）与拖拽区
+// 用 Segoe MDL2 Assets（Windows 原生图标字体）渲染，观感与系统按钮一致
 function injectWindowControls(wc) {
   const css = `
-    .dsh-drag-region { position: fixed; top: 0; left: 0; right: 138px; height: 36px; -webkit-app-region: drag; z-index: 2147483646; }
-    .dsh-win-controls { position: fixed; top: 0; right: 0; height: 36px; display: flex; z-index: 2147483647; -webkit-app-region: no-drag; }
-    .dsh-win-controls button { width: 46px; height: 36px; border: none; background: transparent; color: #94a3b8; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-family: inherit; padding: 0; }
-    .dsh-win-controls button:hover { background: rgba(148,163,184,0.15); color: #e2e8f0; }
-    .dsh-win-controls button.dsh-close:hover { background: #e11d48; color: #fff; }
+    .dsh-drag-region { position: fixed; top: 0; left: 0; right: 138px; height: 32px; -webkit-app-region: drag; z-index: 2147483646; }
+    .dsh-win-controls { position: fixed; top: 0; right: 0; height: 32px; display: flex; z-index: 2147483647; -webkit-app-region: no-drag; }
+    .dsh-win-controls button {
+      width: 46px; height: 32px; border: none; background: transparent; padding: 0;
+      font-family: "Segoe MDL2 Assets", "Segoe Fluent Icons", sans-serif;
+      font-size: 10px; line-height: 32px; color: #595959;
+      display: flex; align-items: center; justify-content: center; cursor: default;
+    }
+    .dsh-win-controls button:hover { background: rgba(0,0,0,0.06); color: #000; }
+    .dsh-win-controls button:active { background: rgba(0,0,0,0.12); }
+    .dsh-win-controls button.dsh-close:hover { background: #e81123; color: #fff; }
+    .dsh-win-controls button.dsh-close:active { background: #c50f1f; }
   `
   wc.insertCSS(css).catch(() => {})
   const js = `(function(){
     if (document.querySelector('.dsh-win-controls')) return;
+    var MIN='\\uE921', MAX='\\uE922', REST='\\uE923', CLOSE='\\uE8BB';
     var drag = document.createElement('div'); drag.className = 'dsh-drag-region'; document.body.appendChild(drag);
     var bar = document.createElement('div'); bar.className = 'dsh-win-controls';
-    function mk(t, cb, cls) { var b = document.createElement('button'); b.textContent = t; if (cls) b.className = cls; b.addEventListener('click', cb); return b; }
-    bar.appendChild(mk('\\u2500', function(){ window.win && window.win.minimize(); }));
-    bar.appendChild(mk('\\u25A1', function(){ window.win && window.win.maximize(); }));
-    bar.appendChild(mk('\\u2715', function(){ window.win && window.win.close(); }, 'dsh-close'));
+    var minBtn = document.createElement('button'); minBtn.textContent = MIN; minBtn.title = '最小化';
+    var maxBtn = document.createElement('button'); maxBtn.textContent = MAX; maxBtn.title = '最大化';
+    var closeBtn = document.createElement('button'); closeBtn.textContent = CLOSE; closeBtn.className = 'dsh-close'; closeBtn.title = '关闭';
+    minBtn.addEventListener('click', function(){ window.win && window.win.minimize(); });
+    maxBtn.addEventListener('click', function(){ window.win && window.win.maximize(); });
+    closeBtn.addEventListener('click', function(){ window.win && window.win.close(); });
+    bar.appendChild(minBtn); bar.appendChild(maxBtn); bar.appendChild(closeBtn);
     document.body.appendChild(bar);
+    function setMax(v){ maxBtn.textContent = v ? REST : MAX; maxBtn.title = v ? '还原' : '最大化'; }
+    if (window.win && window.win.isMaximized) window.win.isMaximized().then(setMax).catch(function(){});
+    if (window.win && window.win.onMaximizedChange) window.win.onMaximizedChange(setMax);
   })();`
   wc.executeJavaScript(js).catch(() => {})
 }
@@ -158,13 +233,19 @@ ipcMain.on('win:maximize', () => {
   uiWindow.isMaximized() ? uiWindow.unmaximize() : uiWindow.maximize()
 })
 ipcMain.on('win:close', () => { uiWindow?.close() })
+ipcMain.handle('win:isMaximized', () => uiWindow?.isMaximized() ?? false)
 
 app.whenReady().then(async () => {
-  // 先启动后端，就绪后再弹窗口（窗口一出现就是 UI）
+  createTray() // 托盘常驻，关闭窗口后服务仍在后台
+  createSplash() // 启动加载页（MD3）
   const ok = await startHarness()
+  splashDone()
   if (ok) openUi()
   else app.quit()
 })
 
-app.on('window-all-closed', () => { stopHarness(); app.quit() })
-process.on('before-exit', () => stopHarness())
+// 窗口关闭到托盘后不退出；仅真正退出时才停服
+app.on('window-all-closed', () => {
+  if (isQuitting) { stopHarness(); app.quit() }
+})
+process.on('before-quit', () => { stopHarness() })
