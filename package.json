@@ -8,6 +8,7 @@
     "electron": "^37.10.3"
   },
   "dependencies": {
+    "png-to-ico": "^3.0.2",
     "sharp": "^0.35.3"
   }
 }
