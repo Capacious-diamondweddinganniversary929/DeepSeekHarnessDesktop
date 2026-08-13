@@ -37,7 +37,8 @@ RestartApplications=no
 SetupLogging=yes
 
 [Languages]
-Name: "chinesesimplified"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
+; 中文语言文件打进仓库（lang/），避免不同 Inno 版本目录差异
+Name: "chinesesimplified"; MessagesFile: "{#SourcePath}lang\ChineseSimplified.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
