@@ -1,7 +1,10 @@
 #define MyAppName "DeepSeek Harness"
 #define MyAppVersion "0.1.0"
 #define MyAppExeName "DeepSeekHarness.exe"
-#define ProjectDir "C:\Users\AzurLane\DeepSeekHarnessDesktop"
+; 项目根路径：本地默认值，CI 上用 /DProjectDir= 覆盖
+#ifndef ProjectDir
+  #define ProjectDir "C:\Users\AzurLane\DeepSeekHarnessDesktop"
+#endif
 #define AppDirSource ProjectDir + "\build\DeepSeekHarnessApp"
 
 [Setup]

@@ -94,7 +94,7 @@ jobs:
         run: |
           $iscc = Get-ChildItem "C:\Program Files*\Inno Setup*\ISCC.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
           if (-not $iscc) { throw "ISCC.exe not found" }
-          & $iscc setup.iss
+          & $iscc "/DProjectDir=$((Get-Location).Path)" setup.iss
           if ($LASTEXITCODE -ne 0) { throw "ISCC compile failed, exit $LASTEXITCODE" }
 
       - name: Upload installer to GitHub Release
