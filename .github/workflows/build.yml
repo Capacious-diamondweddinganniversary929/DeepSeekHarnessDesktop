@@ -81,7 +81,7 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           set -euo pipefail
-          VER="$( [ "$GITHUB_REF_TYPE" = "tag" ] && echo "${GITHUB_REF_NAME#v}" || echo dev )"
+          VER="$( [ "$GITHUB_REF_TYPE" = "tag" ] && echo "${GITHUB_REF_NAME#v}" || echo 0.0.0-dev )"
           ARCH="$(node -p "process.arch")"
           mkdir -p installers
           hdiutil create -volname "DeepSeek Harness" \
@@ -93,7 +93,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           set -euo pipefail
-          VER="$( [ "$GITHUB_REF_TYPE" = "tag" ] && echo "${GITHUB_REF_NAME#v}" || echo dev )"
+          VER="$( [ "$GITHUB_REF_TYPE" = "tag" ] && echo "${GITHUB_REF_NAME#v}" || echo 0.0.0-dev )"
           ARCH="$(node -p "process.arch")"
           mkdir -p installers
           # assemble.js 在 Linux 将应用输出到 DeepSeekHarnessApp 根目录
@@ -103,7 +103,8 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           set -euo pipefail
-          VER="$( [ "$GITHUB_REF_TYPE" = "tag" ] && echo "${GITHUB_REF_NAME#v}" || echo dev )"
+          # dpkg-deb 要求版本号以数字开头
+          VER="$( [ "$GITHUB_REF_TYPE" = "tag" ] && echo "${GITHUB_REF_NAME#v}" || echo 0.0.0-dev )"
           ARCH="$(node -p "process.arch === 'arm64' ? 'arm64' : 'amd64'")"
           APP=deepseek-harness
           PKG="installers/pkg"
