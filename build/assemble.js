@@ -68,8 +68,13 @@ if (platform === 'win32') {
   const appDir = path.join(out, 'DeepSeekHarness.app')
   const macosDir = path.join(appDir, 'Contents', 'MacOS')
   const appResDir = path.join(appDir, 'Contents', 'Resources')
+  // 复制 Electron.app 必须用 ditto（保留符号链接）：框架内部依赖
+  // Versions/Current 等符号链接结构，cp -aL 解引用会破坏 .framework 布局，
+  // 导致 codesign 报 "bundle format is ambiguous"
   const staging = path.join(out, '_Electron.app')
-  copyContents(path.join(electronDist, 'Electron.app'), staging)
+  fs.mkdirSync(staging, { recursive: true })
+  const d = sh('ditto', [path.join(electronDist, 'Electron.app'), staging], { check: false })
+  if (d.status !== 0) fail(`ditto Electron.app failed (exit ${d.status})`)
   fs.renameSync(staging, appDir)
   fs.renameSync(path.join(macosDir, 'Electron'), path.join(macosDir, 'DeepSeekHarness'))
   copyContents(appSrc, path.join(appResDir, 'app'))
